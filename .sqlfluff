@@ -1,0 +1,14 @@
+[sqlfluff]
+templater = placeholder
+dialect = sqlite
+
+[sqlfluff:templater:placeholder]
+param_style = colon
+
+[sqlfluff:indentation]
+indented_joins = False
+indented_using_on = True
+template_blocks_indent = False
+
+[sqlfluff:layout:type:comma]
+line_position = leading
