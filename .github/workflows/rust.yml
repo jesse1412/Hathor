@@ -47,4 +47,3 @@ jobs:
 
         # Branch to compare against (for reviewdog)
         github_base_ref: "main"
-         
