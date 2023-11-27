@@ -7,8 +7,22 @@ const COMPATIBLE_AUDIO_TYPES: &[&str] = &[
     "webm",
 ];
 
-pub fn get_all_audio_files(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
-    let mut audio_files = Vec::new();
+/// Recursively finds audio file paths.
+///
+/// # Arguments
+///
+/// * `path` - Path to a file or directory containing files.
+///
+/// # Examples
+///
+/// ```
+/// use hathor_songs::file_management::get_all_audio_file_paths;
+/// use std::path::Path;
+///
+/// let p = Path::new(r"C:\songs\");
+/// let audio_file_paths = get_all_audio_file_paths(&p);
+pub fn get_all_audio_file_paths(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    let mut audio_file_paths = Vec::new();
     for entry in WalkDir::new(path)
         .follow_links(true)
         .into_iter()
@@ -19,10 +33,10 @@ pub fn get_all_audio_files(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> 
         if let Some(extension) = extension {
             if COMPATIBLE_AUDIO_TYPES.contains(&extension.to_str().unwrap().to_lowercase().as_str())
             {
-                audio_files.push(PathBuf::from(&entry.path()));
+                audio_file_paths.push(PathBuf::from(&entry.path()));
             }
         }
     }
 
-    Ok(audio_files)
+    Ok(audio_file_paths)
 }
