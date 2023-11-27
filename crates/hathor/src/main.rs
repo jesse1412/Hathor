@@ -2,7 +2,7 @@ use hathor_songs::audio::AudioFile;
 use hathor_songs::database;
 
 fn main() {
-    let mut conn = database::get_connection().unwrap();
+    let mut conn = database::get_connection(std::path::Path::new(".hathor.sqlite3")).unwrap();
     let mut songs = Vec::new();
     for _ in 0..=100000 {
         songs.push(

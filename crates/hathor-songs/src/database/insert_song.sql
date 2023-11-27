@@ -5,7 +5,7 @@ INSERT INTO SONGS VALUES (
     , :artist_name
     , :track_num
     , :release_year
-    , :song_length
+    , :song_length_s
     , :song_path
     , :img_path
 );
