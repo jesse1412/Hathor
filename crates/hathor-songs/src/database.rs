@@ -10,6 +10,7 @@ use rusqlite::Result;
 
 const INSERT_BATCH_SIZE: u16 = 64;
 
+/// Connects to SQL database and initialises Hathor tables if needed.
 pub fn get_connection() -> Result<Connection, Box<dyn std::error::Error>> {
     let db_path = std::path::Path::new(".hathor.sqlite3");
     let conn = Connection::open(db_path)?;
@@ -17,6 +18,25 @@ pub fn get_connection() -> Result<Connection, Box<dyn std::error::Error>> {
     Ok(conn)
 }
 
+/// Inserts a slice of [AudioFile](super::audio::AudioFile)s into the DB.
+///
+/// # Arguments
+///
+/// * `conn` - The open database connection to insert into.
+/// * `songs` - Collection of [AudioFile](super::audio::AudioFile)s to insert.
+///
+/// # Examples
+///
+/// ```no_run
+/// use hathor_songs::audio::AudioFile;
+/// use hathor_songs::database::insert_songs;
+/// use std::path::Path;
+/// use rusqlite::Connection;
+///
+/// let mut conn = Connection::open_in_memory().unwrap();
+/// let mut songs = Vec::new();
+/// songs.push(AudioFile::default());
+/// insert_songs(&mut conn, &songs);
 pub fn insert_songs(
     conn: &mut Connection,
     songs: &[audio::AudioFile],

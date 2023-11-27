@@ -6,6 +6,7 @@ use symphonia::core::meta::{MetadataOptions, MetadataRevision, StandardTagKey};
 use symphonia::core::probe::Hint;
 use time::Duration;
 
+/// A minimal representation of an Audio file for Hathor.
 pub struct AudioFile {
     pub file_hash: Hash,
     pub song_title: String,
@@ -35,6 +36,19 @@ impl Default for AudioFile {
 }
 
 impl AudioFile {
+    /// Returns an [AudioFile](super::audio::AudioFile) populated from the file at the given path.
+    ///
+    /// # Arguments
+    ///
+    /// * `song_path` - Path to the target audio file.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use hathor_songs::audio::AudioFile;
+    /// use std::path::Path;
+    ///
+    /// let p = Path::new(r"C:\songs.flac");
+    /// let song = AudioFile::from_file(&p);
     pub fn from_file(song_path: &std::path::Path) -> Result<AudioFile, Box<dyn Error>> {
         let mut audio_file = AudioFile::default();
         // Open file.
