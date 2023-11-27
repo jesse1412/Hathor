@@ -8,13 +8,12 @@ pub(crate) fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error
 }
 
 #[cfg(test)]
-mod tests {
+mod database_connect {
+    use super::init_db;
     use rusqlite::Connection;
 
-    use super::init_db;
-
     #[test]
-    fn test_tables_created() {
+    fn test_table_creation_doesnt_fail_on_connect() {
         let conn = Connection::open_in_memory().unwrap();
         init_db(&conn).expect("Database setup error");
     }
