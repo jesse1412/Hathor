@@ -1,3 +1,4 @@
 [workspace]
-members = ["crates/*"]
+# Not sure 
+members = ["crates/*", "crates/hathor/src-tauri"]
 resolver = "2"
