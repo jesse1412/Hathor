@@ -10,5 +10,5 @@ fn main() {
                 .unwrap(),
         );
     }
-    database::insert_songs(&mut conn, &songs).unwrap();
+    database::songs::insert_songs(&mut conn, &songs).unwrap();
 }
