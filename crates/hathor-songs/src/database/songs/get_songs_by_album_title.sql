@@ -1,0 +1,3 @@
+SELECT *
+FROM SONGS
+WHERE ALBUM_TITLE LIKE '%' + :album_title '%';
