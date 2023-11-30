@@ -31,12 +31,13 @@ pub fn app() -> Html {
     }).collect::<Html>();
 
     html! {
-        <div>
+        <body>
+        <TitleBar />
         <div id="image-track" data-mouse-down-at="0" data-prev-percentage="0">
         { tracks }
         </div>
             <MediaControl/>
-        </div>
+        </body>
     }
 }
 
@@ -55,3 +56,25 @@ fn MediaControl() -> Html {
     }
 }
 
+#[function_component]
+fn TitleBar() -> Html { 
+    html! {
+    <div class="titlebar">
+        <div class="titlebar-button" id="titlebar-minimize">
+            <img
+            src="https://api.iconify.design/mdi:window-minimize.svg"
+            alt="minimize"
+            />
+        </div>
+        <div class="titlebar-button" id="titlebar-maximize">
+            <img
+            src="https://api.iconify.design/mdi:window-maximize.svg"
+            alt="maximize"
+            />
+        </div>
+        <div class="titlebar-button" id="titlebar-close">
+            <img src="https://api.iconify.design/mdi:close.svg" alt="close" />
+        </div>
+    </div>
+    }
+}
