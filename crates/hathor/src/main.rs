@@ -29,13 +29,13 @@ pub fn app() -> Html {
     let tracks = tracks.iter().map(|track| html!{
         <img class="image" src={format!("{}",track.image)} draggable="false"/>
     }).collect::<Html>();
+    // <div id="image-track" data-mouse-down-at="0" data-prev-percentage="0">
+    //{ tracks }
+    //</div>
 
     html! {
         <body>
-        <TitleBar />
-        <div id="image-track" data-mouse-down-at="0" data-prev-percentage="0">
-        { tracks }
-        </div>
+            <TitleBar />
             <MediaControl/>
         </body>
     }
@@ -46,12 +46,13 @@ pub fn app() -> Html {
 fn MediaControl() -> Html {
     html!{ 
         <div id="bottom-bar"> 
-        <button class="media-control-button"> {"P"} </button>
-        <button class="media-control-button"> {"P/P"} </button>
-        <button class="media-control-button"> {"R"} </button>
-        <div id="song-time-track">
-            <span style="width: 0px ;"> </span>
-        </div>
+            <button class="media-control-button"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.75 13.25L11.25 8l-8.5-5.25zm11.5-9.5v8.5"/></svg></button>
+            <button class="media-control-button"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.75 2.75v10.5L12.25 8z"/></svg> </button>
+            <button class="media-control-button"> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.75 13.25L11.25 8l-8.5-5.25zm11.5-9.5v8.5"/></svg></button>
+        
+            <div class="progress-container">
+                <span class="progressbar" style="width:60%"></span>
+            </div>
         </div>
     }
 }

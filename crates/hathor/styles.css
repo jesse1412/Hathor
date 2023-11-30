@@ -1,7 +1,7 @@
 body {
   height: 100vh;
   width: 100vw;
-  background-color: #282828;
+  background-color: #000000;
   margin: 0rem;
   overflow: hidden;
 }
@@ -10,55 +10,60 @@ body {
   width: 40px;
   height: 40px;
   margin: 2% auto;
-  background: #424242;
+  background: #000000;
   border-radius: 50%;
-  border-color: #424242;
+  border-color: #000000;
   border-style: none;
+}
+.media-control-button:hover {
+  background: #f672a1;
+}
+.media-control-icon {
+  fill: rgb(255, 255, 255);
+  justify-content: center;
+}
+
+
+.titlebar-button:hover {
+  background: #f672a1;
 }
 
 #bottom-bar { 
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 2rem;
   margin: 0 auto;
-  background-color: #f672a1;
+  background-color: #424242;
   overflow: hidden;
   position: fixed;
   bottom: 0;
   width: 100%;
 }
 
-#song-time-track { 
-  margin: 2% auto;
-  width:50%;
-  background: #424242;
-  height:11px;
-  border-radius:10px;
-  bottom:0;
-  border: 20px;
-  span {
-    display:block;
-    transition: transform 0.15s ease;
-    transform: translateY(20px);
-    transition-delay:0.3s;
-  }
+.progress-container {
+  position: relative;
+  width: 50%;
+  margin: 0 auto;
+  background: #ac5071;
+  height: 12px;
+  border-radius: 8px;
 }
 
-#image-track {
-  display: flex;
-  gap: 4vmin;
+@keyframes progressbar-anim {
+  from {width: 0%;}
+  to {width: 100%;}
+}
+
+.progressbar {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(0%, -50%); 
-  user-select: none; /* -- Prevent image highlighting -- */
+  height: 12px;
+  max-width: 100%;
+  border-radius: 8px;
+  background: #f672a1;
+  animation-name: progressbar-anim;
+  animation-duration: 20s;
 }
-
-#image-track > .image {
-  width: 40vmin;
-  height: 56vmin;
-  object-fit: cover;
-  object-position: 100% center;
-  border-radius: 25px;
-}
-
 
 .titlebar {
   height: 30px;
@@ -77,6 +82,7 @@ body {
   align-items: center;
   width: 30px;
   height: 30px;
+  transition: 0.3s;
 }
 .titlebar-button:hover {
   background: #f672a1;
