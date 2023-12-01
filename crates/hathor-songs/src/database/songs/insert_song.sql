@@ -1,7 +1,7 @@
 INSERT INTO SONGS VALUES (
     :file_hash
     , :song_title
-    , :album_title
+    , :album_name
     , :artist_name
     , :track_num
     , :release_year

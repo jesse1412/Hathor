@@ -11,7 +11,7 @@ use time::Duration;
 pub struct AudioFile {
     pub file_hash: Hash,
     pub song_title: String,
-    pub album_title: String,
+    pub album_name: String,
     pub artist_name: String,
     pub track_num: u8,
     pub release_year: u16,
@@ -25,7 +25,7 @@ impl Default for AudioFile {
         AudioFile {
             file_hash: Hash::from_hex(format!("{:064}", 0)).unwrap(),
             song_title: String::default(),
-            album_title: String::default(),
+            album_name: String::default(),
             artist_name: String::default(),
             track_num: 1,
             release_year: 1,
@@ -63,9 +63,9 @@ impl AudioFile {
 
         // Add metadata from within the file itself.
         if let Some(metadata_rev) = probe.format.metadata().current() {
-            audio_file.add_symphonia_medadata(metadata_rev);
+            audio_file.add_symphonia_metadata(metadata_rev);
         } else if let Some(metadata_rev) = probe.metadata.get().as_ref().and_then(|m| m.current()) {
-            audio_file.add_symphonia_medadata(metadata_rev);
+            audio_file.add_symphonia_metadata(metadata_rev);
         }
 
         // Add metadata from processing the file.
@@ -95,7 +95,7 @@ impl AudioFile {
         Ok(hasher.finalize())
     }
 
-    fn add_symphonia_medadata(
+    fn add_symphonia_metadata(
         self: &mut AudioFile,
         metadata_rev: &MetadataRevision,
     ) -> &mut AudioFile {
@@ -104,7 +104,7 @@ impl AudioFile {
             if let Some(key) = tag.std_key {
                 match key {
                     StandardTagKey::TrackTitle => self.song_title = tag.value.to_string(),
-                    StandardTagKey::Album => self.album_title = tag.value.to_string(),
+                    StandardTagKey::Album => self.album_name = tag.value.to_string(),
                     StandardTagKey::Artist => self.artist_name = tag.value.to_string(),
                     StandardTagKey::TrackNumber => {
                         self.track_num = tag.value.to_string().parse::<u8>().unwrap()
@@ -169,8 +169,8 @@ mod audio_file_tests {
     }
 
     #[test]
-    fn test_audio_file_from_file_album_title() {
-        assert_eq!(read_audio_file().album_title, "test album")
+    fn test_audio_file_from_file_album_name() {
+        assert_eq!(read_audio_file().album_name, "test album")
     }
 
     #[test]
