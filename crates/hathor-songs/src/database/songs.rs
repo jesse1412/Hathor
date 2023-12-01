@@ -3,6 +3,7 @@ use blake3::Hash;
 use rusqlite::{Connection, Row};
 use std::{error::Error, str::FromStr, usize};
 const INSERT_BATCH_SIZE: u16 = 64;
+use crate::database::query_map_to_audiofile;
 use rusqlite::named_params;
 use std::path::PathBuf;
 use time::Duration;
@@ -60,6 +61,31 @@ pub fn get_song_by_hash(conn: &mut Connection, hash: &Hash) -> AudioFile {
         include_str!("songs/get_song_by_hash.sql"),
         named_params! {":file_hash": hash.to_string() },
         song_select_result_to_audiofile,
+    )
+    .unwrap()
+}
+
+/// Retvieve songs with titles like the given string.
+///
+/// # Arguments
+///
+/// * `conn` - The open database connection to insert into.
+/// * `title` - The title to retrieve.
+///
+/// Examples
+/// ```no_run
+/// use rusqlite::Connection;
+/// use blake3::Hash;
+/// use hathor_songs::database::songs::get_song_by_hash;
+///
+/// let mut conn = Connection::open_in_memory().unwrap();
+/// let hash = Hash::from_hex(format!("{:064}", 0)).unwrap();
+/// let song = get_song_by_hash(&mut conn, &hash);
+pub fn get_songs_by_title(conn: &mut Connection, title: &str) -> Vec<AudioFile> {
+    query_map_to_audiofile(
+        conn,
+        include_str!("songs/get_songs_by_title.sql"),
+        named_params! {":song_title": title.to_string() },
     )
     .unwrap()
 }

@@ -63,9 +63,9 @@ impl AudioFile {
 
         // Add metadata from within the file itself.
         if let Some(metadata_rev) = probe.format.metadata().current() {
-            audio_file.add_symphonia_medadata(metadata_rev);
+            audio_file.add_symphonia_metadata(metadata_rev);
         } else if let Some(metadata_rev) = probe.metadata.get().as_ref().and_then(|m| m.current()) {
-            audio_file.add_symphonia_medadata(metadata_rev);
+            audio_file.add_symphonia_metadata(metadata_rev);
         }
 
         // Add metadata from processing the file.
@@ -95,7 +95,7 @@ impl AudioFile {
         Ok(hasher.finalize())
     }
 
-    fn add_symphonia_medadata(
+    fn add_symphonia_metadata(
         self: &mut AudioFile,
         metadata_rev: &MetadataRevision,
     ) -> &mut AudioFile {
