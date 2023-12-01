@@ -3,6 +3,7 @@ use blake3::Hash;
 use rusqlite::{Connection, Row};
 use std::{error::Error, str::FromStr, usize};
 const INSERT_BATCH_SIZE: u16 = 64;
+use crate::database::query_map_to_audiofile;
 use rusqlite::named_params;
 use std::path::PathBuf;
 use time::Duration;
@@ -64,6 +65,75 @@ pub fn get_song_by_hash(conn: &mut Connection, hash: &Hash) -> AudioFile {
     .unwrap()
 }
 
+/// Retvieve songs with albums like the given string.
+///
+/// # Arguments
+///
+/// * `conn` - The open database connection to insert into.
+/// * `album_name` - The title to retrieve.
+///
+/// Examples
+/// ```no_run
+/// use rusqlite::Connection;
+/// use hathor_songs::database::songs::get_songs_by_album_name;
+///
+/// let mut conn = Connection::open_in_memory().unwrap();
+/// let songs = get_songs_by_album_name(&mut conn, "Ablum name");
+pub fn get_songs_by_album_name(conn: &mut Connection, album_name: &str) -> Vec<AudioFile> {
+    query_map_to_audiofile(
+        conn,
+        include_str!("songs/get_songs_by_album_name.sql"),
+        named_params! {":album_name": album_name.to_string() },
+    )
+    .unwrap()
+}
+
+/// Retvieve songs with artist names like the given string.
+///
+/// # Arguments
+///
+/// * `conn` - The open database connection to insert into.
+/// * `artist_name` - The title to retrieve.
+///
+/// Examples
+/// ```no_run
+/// use rusqlite::Connection;
+/// use hathor_songs::database::songs::get_songs_by_artist_name;
+///
+/// let mut conn = Connection::open_in_memory().unwrap();
+/// let songs = get_songs_by_artist_name(&mut conn, "Artist name");
+pub fn get_songs_by_artist_name(conn: &mut Connection, song_title: &str) -> Vec<AudioFile> {
+    query_map_to_audiofile(
+        conn,
+        include_str!("songs/get_songs_by_artist_name.sql"),
+        named_params! {":artist_name": song_title.to_string() },
+    )
+    .unwrap()
+}
+
+/// Retvieve songs with titles like the given string.
+///
+/// # Arguments
+///
+/// * `conn` - The open database connection to insert into.
+/// * `song_title` - The title to retrieve.
+///
+/// Examples
+/// ```no_run
+/// use rusqlite::Connection;
+/// use hathor_songs::database::songs::get_songs_by_title;
+///
+/// let mut conn = Connection::open_in_memory().unwrap();
+/// let songs = get_songs_by_title(&mut conn, "Song name");
+pub fn get_songs_by_title(conn: &mut Connection, song_title: &str) -> Vec<AudioFile> {
+    query_map_to_audiofile(
+        conn,
+        include_str!("songs/get_songs_by_title.sql"),
+        named_params! {":song_title": song_title.to_string() },
+    )
+    .unwrap()
+}
+
 fn song_select_result_to_audiofile(row: &Row) -> Result<AudioFile, rusqlite::Error> {
     let mut img_path: Option<PathBuf> = None;
     let img_path_str = &row.get::<usize, String>(8);
@@ -81,7 +151,7 @@ fn song_select_result_to_audiofile(row: &Row) -> Result<AudioFile, rusqlite::Err
     Ok(AudioFile {
         file_hash: Hash::from_str(&row.get::<usize, String>(0)?).unwrap(),
         song_title: row.get(1)?,
-        album_title: row.get(2)?,
+        album_name: row.get(2)?,
         artist_name: row.get(3)?,
         track_num: row.get(4)?,
         release_year: row.get(5)?,
@@ -103,7 +173,7 @@ fn insert_next_batch_of_songs(
             let params = named_params! {
                 ":file_hash": song.file_hash.to_string(),
                 ":song_title": song.song_title,
-                ":album_title": song.album_title,
+                ":album_name": song.album_name,
                 ":artist_name": song.artist_name,
                 ":track_num": song.track_num,
                 ":release_year": song.release_year,
@@ -123,24 +193,13 @@ fn insert_next_batch_of_songs(
 mod test_songs_operations {
     use crate::audio::AudioFile;
     use crate::database::init_db;
-    use crate::database::songs::{get_song_by_hash, insert_songs};
+    use crate::database::songs::{
+        get_song_by_hash, get_songs_by_album_name, get_songs_by_artist_name, get_songs_by_title,
+        insert_songs,
+    };
     use blake3::Hash;
     use rusqlite::{named_params, Connection};
-    use std::fs;
     use std::path::PathBuf;
-
-    /// Deletes the temporary test DB from file-system on drop.
-    /// So we instantiate it at the start of the tests,
-    /// otherwise the test DB may persist on panic.
-    struct TestContext {
-        db_path: PathBuf,
-    }
-
-    impl Drop for TestContext {
-        fn drop(&mut self) {
-            fs::remove_file(&self.db_path).ok();
-        }
-    }
 
     /// Create a fake test database, insert a batch of songs, and check it inserted.
     #[test]
@@ -149,12 +208,12 @@ mod test_songs_operations {
         let songs = init_db_with_two_songs(&mut conn);
         let album_name = conn
             .query_row::<String, _, _>(
-                r"SELECT ALBUM_TITLE FROM SONGS WHERE SONG_TITLE = :song_title",
+                r"SELECT ALBUM_NAME FROM SONGS WHERE SONG_TITLE = :song_title",
                 named_params! {":song_title": songs[0].song_title },
                 |row| row.get::<usize, String>(0),
             )
             .unwrap();
-        assert_eq!(album_name, songs[0].album_title);
+        assert_eq!(album_name, songs[0].album_name);
     }
 
     /// Create a fake test database, insert a batch of songs,
@@ -165,6 +224,75 @@ mod test_songs_operations {
         let songs = init_db_with_two_songs(&mut conn);
         let audiofile_from_db = get_song_by_hash(&mut conn, &songs[0].file_hash);
         assert_eq!(audiofile_from_db, songs[0]);
+    }
+
+    /// Create a fake test database, insert a batch of songs,
+    /// and check they can be retrieved by an exact album name match.
+    #[test]
+    fn test_get_song_by_album_name_exact() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let songs = init_db_with_two_songs(&mut conn);
+        let audiofile_from_db = &get_songs_by_album_name(&mut conn, &songs[0].album_name);
+        let audiofile_from_db = &audiofile_from_db[0];
+        assert_eq!(*audiofile_from_db, songs[0]);
+    }
+
+    /// Create a fake test database, insert a batch of songs,
+    /// and check they can be retrieved by a partial album name match.
+    #[test]
+    fn test_get_song_by_album_name_partial() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let songs = init_db_with_two_songs(&mut conn);
+        let audiofiles_from_db = &get_songs_by_album_name(&mut conn, "album");
+        for (l, r) in songs.iter().zip(audiofiles_from_db) {
+            assert_eq!(l, r);
+        }
+    }
+
+    /// Create a fake test database, insert a batch of songs,
+    /// and check they can be retrieved by an exact artist name match.
+    #[test]
+    fn test_get_song_by_artist_name_exact() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let songs = init_db_with_two_songs(&mut conn);
+        let audiofile_from_db = &get_songs_by_artist_name(&mut conn, &songs[0].artist_name);
+        let audiofile_from_db = &audiofile_from_db[0];
+        assert_eq!(*audiofile_from_db, songs[0]);
+    }
+
+    /// Create a fake test database, insert a batch of songs,
+    /// and check they can be retrieved by a partial artist name match.
+    #[test]
+    fn test_get_song_by_artist_name_partial() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let songs = init_db_with_two_songs(&mut conn);
+        let audiofiles_from_db = &get_songs_by_artist_name(&mut conn, "artist");
+        for (l, r) in songs.iter().zip(audiofiles_from_db) {
+            assert_eq!(l, r);
+        }
+    }
+
+    /// Create a fake test database, insert a batch of songs,
+    /// and check they can be retrieved by an exact title match.
+    #[test]
+    fn test_get_song_by_title_exact() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let songs = init_db_with_two_songs(&mut conn);
+        let audiofile_from_db = &get_songs_by_title(&mut conn, &songs[0].song_title);
+        let audiofile_from_db = &audiofile_from_db[0];
+        assert_eq!(*audiofile_from_db, songs[0]);
+    }
+
+    /// Create a fake test database, insert a batch of songs,
+    /// and check they can be retrieved by a partial title match.
+    #[test]
+    fn test_get_song_by_title_partial() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let songs = init_db_with_two_songs(&mut conn);
+        let audiofiles_from_db = &get_songs_by_title(&mut conn, "song");
+        for (l, r) in songs.iter().zip(audiofiles_from_db) {
+            assert_eq!(l, r);
+        }
     }
 
     /// Initialise a test db, insert two audio files, and return a vec of those audio files.
@@ -182,7 +310,8 @@ mod test_songs_operations {
         let a1 = AudioFile {
             file_hash: Hash::from_hex(format!("{:064}", 0)).unwrap(),
             song_title: String::from("test song title 1"),
-            album_title: String::from("test album title 1"),
+            artist_name: String::from("test artist 1"),
+            album_name: String::from("test album title 1"),
             song_path: song_path.clone(),
             img_path: Some(img_path.clone()),
             ..AudioFile::default()
@@ -190,7 +319,8 @@ mod test_songs_operations {
         let a2 = AudioFile {
             file_hash: Hash::from_hex(format!("{:064}", 1)).unwrap(),
             song_title: String::from("test song title 2"),
-            album_title: String::from("test album title 2"),
+            artist_name: String::from("test artist 2"),
+            album_name: String::from("test album title 2"),
             song_path: song_path.clone(),
             img_path: Some(img_path.clone()),
             ..AudioFile::default()

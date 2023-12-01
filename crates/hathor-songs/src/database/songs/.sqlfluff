@@ -1,7 +1,7 @@
 [sqlfluff:templater:placeholder]
 file_hash = '21d2ea20df5bb69b3048c08881702be748de01652ca26c9f26ab7297f2de51fe'
 song_title = 'Engage Ring'
-album_title = 'Restore'
+album_name = 'Restore'
 artist_name = 'DJ OKAWARI ✕ Emily Styler'
 track_num = '04'
 release_year = '2018'
