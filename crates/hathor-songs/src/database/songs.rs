@@ -179,7 +179,13 @@ fn insert_next_batch_of_songs(
                 ":release_year": song.release_year,
                 ":song_length_s": song.song_length.whole_nanoseconds() as i64,
                 ":song_path": song.song_path.canonicalize().unwrap().into_os_string().into_string().unwrap(),
-                ":img_path": song.img_path.as_ref().unwrap().canonicalize()?.into_os_string().into_string().unwrap(),
+                ":img_path": song.img_path.as_ref().map(|s| {
+                    s.canonicalize()
+                        .unwrap()
+                        .into_os_string()
+                        .into_string()
+                        .unwrap()
+                }),
             };
             statement.execute(params)?;
         } else {
