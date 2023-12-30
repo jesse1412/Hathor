@@ -16,6 +16,8 @@ use time::Duration;
 
 use crate::audio::AudioFile;
 
+const INSERT_BATCH_SIZE: u16 = 64;
+
 /// Connects to SQL database and initialises Hathor tables if needed.
 pub fn get_connection(db_path: &Path) -> Result<Connection, Box<dyn std::error::Error>> {
     let conn = Connection::open(db_path)?;
