@@ -13,19 +13,27 @@ repos:
         language: system
         types: [rust]
         pass_filenames: false
-  - repo: local
-    hooks:
       - id: clippy
         name: clippy
         language: system
         entry: cargo clippy --all-targets --all -- -D warnings # Use -D warnings option to ensure the job fails when encountering warnings
         pass_filenames: false
         types: [rust]
-  - repo: local
-    hooks:
       - id: cargo-test
         name: cargo test
         entry: cargo test --
         pass_filenames: false
         language: system
         types: [rust]
+      - id: sqlfluff-fix
+        name: sqlfluff-fix
+        # Set a couple of default flags:
+        #  - `--force` to disable confirmation
+        #  - `--show-lint-violations` shows issues to not require running `sqlfluff lint`
+        #  - `--processes 0` to use maximum parallelism
+        # By default, this hook applies all rules.
+        entry: sqlfluff fix --force --show-lint-violations --processes 0
+        language: python
+        require_serial: true
+        types: [sql]
+        additional_dependencies: [sqlfluff]
