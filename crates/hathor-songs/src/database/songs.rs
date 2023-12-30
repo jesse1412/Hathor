@@ -1,11 +1,8 @@
 use crate::audio::{self, AudioFile};
+use crate::database::{query_map_to_audiofile, INSERT_BATCH_SIZE};
 use blake3::Hash;
-use rusqlite::{Connection, Row};
-use std::{error::Error, str::FromStr, usize};
-const INSERT_BATCH_SIZE: u16 = 64;
-use crate::database::query_map_to_audiofile;
-use rusqlite::named_params;
-use std::path::PathBuf;
+use rusqlite::{named_params, Connection, Row};
+use std::{error::Error, path::PathBuf, str::FromStr, usize};
 use time::Duration;
 
 /// Inserts a slice of [AudioFile](super::audio::AudioFile)s into the DB.
@@ -29,7 +26,7 @@ use time::Duration;
 /// insert_songs(&mut conn, &songs);
 pub fn insert_songs(
     conn: &mut Connection,
-    songs: &[audio::AudioFile],
+    songs: &[AudioFile],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut songs_iter = songs.iter().peekable();
     while songs_iter.peek().is_some() {
