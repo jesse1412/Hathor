@@ -1,5 +1,5 @@
 use crate::audio::{self, AudioFile};
-use crate::database::INSERT_BATCH_SIZE;
+use crate::database::{query_map_to_audiofiles, INSERT_BATCH_SIZE};
 use rusqlite::named_params;
 use rusqlite::Connection;
 use std::error::Error;
@@ -38,9 +38,32 @@ pub fn insert_songs_into_playlist(
     Ok(())
 }
 
+/// Retvieve songs from the named playlist.
+///
+/// # Arguments
+///
+/// * `conn` - The open database connection to insert into.
+/// * `playlist_name` - The playlist to retrieve (exact match only).
+///
+/// Examples
+/// ```no_run
+/// use rusqlite::Connection;
+/// use hathor_songs::database::playlists::get_songs_from_playlist;
+///
+/// let mut conn = Connection::open_in_memory().unwrap();
+/// let songs = get_songs_from_playlist(&mut conn, "Playlist name");
+pub fn get_songs_from_playlist(conn: &mut Connection, playlist_name: &str) -> Vec<AudioFile> {
+    query_map_to_audiofiles(
+        conn,
+        include_str!("playlists/get_songs_from_playlist.sql"),
+        named_params! {":playlist_name": playlist_name.to_string() },
+    )
+    .unwrap()
+}
+
 fn insert_next_batch_of_songs_into_playlist(
     transaction: &rusqlite::Transaction<'_>,
-    playlist_title: &str,
+    playlist_name: &str,
     songs_iter: &mut std::iter::Peekable<std::slice::Iter<'_, audio::AudioFile>>,
 ) -> Result<(), Box<dyn Error>> {
     let mut statement = transaction
@@ -49,8 +72,8 @@ fn insert_next_batch_of_songs_into_playlist(
     for _ in 0..=INSERT_BATCH_SIZE {
         if let Some(song) = songs_iter.next() {
             let params = named_params! {
+                ":playlist_name": playlist_name,
                 ":file_hash": song.file_hash.to_string(),
-                ":playlist_name": playlist_title,
             };
             statement.execute(params)?;
         } else {
@@ -64,16 +87,62 @@ fn insert_next_batch_of_songs_into_playlist(
 mod test_playlists_operations {
     use crate::audio::AudioFile;
     use crate::database::init_db;
-    use crate::database::playlists::insert_songs_into_playlist;
+    use crate::database::playlists::{get_songs_from_playlist, insert_songs_into_playlist};
+    use crate::database::songs::insert_songs;
     use blake3::Hash;
     use rusqlite::{named_params, Connection};
+    use std::collections::HashSet;
     use std::path::PathBuf;
 
-    /// Create a fake test database, insert a batches of songs into playlist, and check it inserted.
+    /// Create a fake test database, insert a batch of songs into two playlists, and check it inserted.
     #[test]
     fn test_insert_songs_into_playlist() {
         let mut conn = Connection::open_in_memory().unwrap();
-        init_db(&conn).expect("Failed to create test database.");
+        let playlist_name_1 = "test_playlist_1";
+        let playlist_name_2 = "test_playlist_2";
+        let (songs_1, _) = setup_playlist_testing_db(&mut conn, playlist_name_1, playlist_name_2);
+        let mut stmt = conn
+            .prepare(r"SELECT FILE_HASH FROM PLAYLISTS WHERE PLAYLIST_NAME = :playlist_name")
+            .unwrap();
+        let playlist_1_hashes: HashSet<String> = stmt
+            .query_map(named_params! {":playlist_name": playlist_name_1}, |r| {
+                r.get::<usize, String>(0)
+            })
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(
+            playlist_1_hashes,
+            songs_1
+                .into_iter()
+                .map(|song| song.file_hash.to_string())
+                .collect()
+        );
+    }
+
+    /// Create a fake test database, insert a batch of songs into playlist,
+    /// and check that they can be retrieved + reconstructed via the playlist name.
+    #[test]
+    fn test_get_songs_from_playlist() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let playlist_name_1 = "test_playlist_1";
+        let playlist_name_2 = "test_playlist_2";
+
+        let (songs_1, _) = setup_playlist_testing_db(&mut conn, playlist_name_1, playlist_name_2);
+
+        let playlist_1_songs: Vec<AudioFile> = get_songs_from_playlist(&mut conn, playlist_name_1);
+        assert_eq!(
+            playlist_1_songs.into_iter().collect::<HashSet<AudioFile>>(),
+            songs_1.into_iter().collect::<HashSet<AudioFile>>()
+        );
+    }
+
+    fn setup_playlist_testing_db(
+        conn: &mut Connection,
+        playlist_name_1: &str,
+        playlist_name_2: &str,
+    ) -> (Vec<AudioFile>, Vec<AudioFile>) {
+        init_db(&*conn).expect("Failed to create test database.");
 
         let mut song_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         song_path.push(r"../../test_media_files/audio/albums/album/test.mp3");
@@ -110,22 +179,11 @@ mod test_playlists_operations {
             img_path: Some(img_path.clone()),
             ..AudioFile::default()
         }];
-        let playlist_name_1 = "test_playlist_1";
-        let playlist_name_2 = "test_playlist_2";
-        insert_songs_into_playlist(&mut conn, playlist_name_1, &songs_1).unwrap();
-        insert_songs_into_playlist(&mut conn, playlist_name_2, &songs_2).unwrap();
-        let mut stmt = conn
-            .prepare(r"SELECT SONG_HASH FROM PLAYLISTS WHERE PLAYLIST_NAME = :playlist_name")
-            .unwrap();
-        let playlist_1_hashes: Vec<String> = stmt
-            .query_map(named_params! {":playlist_name": playlist_name_1}, |r| {
-                r.get::<usize, String>(0)
-            })
-            .unwrap()
-            .map(|r| r.unwrap())
-            .collect();
-        assert_eq!(playlist_1_hashes[0], songs_1[0].file_hash.to_string());
-        assert_eq!(playlist_1_hashes[1], songs_1[1].file_hash.to_string());
-        assert_eq!(playlist_1_hashes.len(), songs_1.len());
+
+        insert_songs_into_playlist(conn, playlist_name_1, &songs_1).unwrap();
+        insert_songs_into_playlist(conn, playlist_name_2, &songs_2).unwrap();
+        insert_songs(conn, &songs_1).unwrap();
+        insert_songs(conn, &songs_2).unwrap();
+        (songs_1, songs_2)
     }
 }

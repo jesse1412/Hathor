@@ -25,7 +25,7 @@ pub fn get_connection(db_path: &Path) -> Result<Connection, Box<dyn std::error::
     Ok(conn)
 }
 
-pub fn query_map_to_audiofile<ParamType>(
+pub fn query_map_to_audiofiles<ParamType>(
     conn: &Connection,
     sql: &str,
     parameters: ParamType,
@@ -37,7 +37,7 @@ where
         .prepare(sql)?
         .query_map(parameters, |row| {
             let song_path = PathBuf::from_str(&row.get::<_, String>(7)?).unwrap();
-            let img_path = PathBuf::from_str(&row.get::<_, String>(8)?).unwrap();
+            let img_path = PathBuf::from_str(&row.get::<_, String>(8)?).ok();
             Ok(AudioFile {
                 file_hash: Hash::from_str(&row.get::<_, String>(0)?).unwrap(),
                 song_title: row.get(1)?,
@@ -47,7 +47,7 @@ where
                 release_year: row.get(5)?,
                 song_length: Duration::seconds(row.get(6)?),
                 song_path,
-                img_path: Some(img_path),
+                img_path,
             })
         })?
         .filter_map(|v| v.ok())
