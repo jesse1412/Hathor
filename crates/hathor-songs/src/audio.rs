@@ -7,7 +7,7 @@ use symphonia::core::probe::Hint;
 use time::Duration;
 
 /// A minimal representation of an Audio file for Hathor.
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Hash)]
 pub struct AudioFile {
     pub file_hash: Hash,
     pub song_title: String,

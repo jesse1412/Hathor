@@ -1,5 +1,5 @@
 use crate::audio::{self, AudioFile};
-use crate::database::{query_map_to_audiofile, INSERT_BATCH_SIZE};
+use crate::database::{query_map_to_audiofiles, INSERT_BATCH_SIZE};
 use blake3::Hash;
 use rusqlite::{named_params, Connection, Row};
 use std::{error::Error, path::PathBuf, str::FromStr, usize};
@@ -77,7 +77,7 @@ pub fn get_song_by_hash(conn: &mut Connection, hash: &Hash) -> AudioFile {
 /// let mut conn = Connection::open_in_memory().unwrap();
 /// let songs = get_songs_by_album_name(&mut conn, "Ablum name");
 pub fn get_songs_by_album_name(conn: &mut Connection, album_name: &str) -> Vec<AudioFile> {
-    query_map_to_audiofile(
+    query_map_to_audiofiles(
         conn,
         include_str!("songs/get_songs_by_album_name.sql"),
         named_params! {":album_name": album_name.to_string() },
@@ -100,7 +100,7 @@ pub fn get_songs_by_album_name(conn: &mut Connection, album_name: &str) -> Vec<A
 /// let mut conn = Connection::open_in_memory().unwrap();
 /// let songs = get_songs_by_artist_name(&mut conn, "Artist name");
 pub fn get_songs_by_artist_name(conn: &mut Connection, song_title: &str) -> Vec<AudioFile> {
-    query_map_to_audiofile(
+    query_map_to_audiofiles(
         conn,
         include_str!("songs/get_songs_by_artist_name.sql"),
         named_params! {":artist_name": song_title.to_string() },
@@ -123,7 +123,7 @@ pub fn get_songs_by_artist_name(conn: &mut Connection, song_title: &str) -> Vec<
 /// let mut conn = Connection::open_in_memory().unwrap();
 /// let songs = get_songs_by_title(&mut conn, "Song name");
 pub fn get_songs_by_title(conn: &mut Connection, song_title: &str) -> Vec<AudioFile> {
-    query_map_to_audiofile(
+    query_map_to_audiofiles(
         conn,
         include_str!("songs/get_songs_by_title.sql"),
         named_params! {":song_title": song_title.to_string() },
