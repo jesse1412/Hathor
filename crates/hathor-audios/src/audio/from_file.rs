@@ -14,23 +14,23 @@ impl AudioFile {
     ///
     /// # Arguments
     ///
-    /// * `song_path` - Path to the target audio file.
+    /// * `audio_path` - Path to the target audio file.
     ///
     /// # Examples
     /// ```no_run
-    /// use hathor_songs::audio::AudioFile;
+    /// use hathor_audios::audio::AudioFile;
     /// use std::path::Path;
     ///
     /// let p = Path::new(r"../test.mp3");
-    /// let song = AudioFile::from_file(p);
-    pub fn from_file(song_path: &std::path::Path) -> Result<AudioFile, Box<dyn Error>> {
+    /// let audio = AudioFile::from_file(p);
+    pub fn from_file(audio_path: &std::path::Path) -> Result<AudioFile, Box<dyn Error>> {
         let mut audio_file = AudioFile::default();
         // Open file.
 
-        let mut probe = AudioFile::get_song_probe(song_path);
+        let mut probe = AudioFile::get_audio_probe(audio_path);
 
         // Add the metadata we already have
-        audio_file.song_path = song_path.to_path_buf().canonicalize().unwrap();
+        audio_file.audio_path = audio_path.to_path_buf().canonicalize().unwrap();
 
         // Add metadata from within the file itself.
         if let Some(metadata_rev) = probe.format.metadata().current() {
@@ -42,16 +42,16 @@ impl AudioFile {
         // Add metadata from processing the file.
         // Length.
         let track = &probe.format.tracks()[0];
-        audio_file.song_length = AudioFile::get_song_length(track);
+        audio_file.audio_length = AudioFile::get_audio_length(track);
 
         // File hash.
-        audio_file.file_hash = AudioFile::get_file_hash(song_path)?;
+        audio_file.file_hash = AudioFile::get_file_hash(audio_path)?;
         Ok(audio_file)
     }
 
     /// Not intended for external use as it has to read entire track.
-    /// After initialisation via from_file, self.song_length will contain this.
-    fn get_song_length(track: &Track) -> Duration {
+    /// After initialisation via from_file, self.audio_length will contain this.
+    fn get_audio_length(track: &Track) -> Duration {
         let track_length = track
             .codec_params
             .time_base
@@ -62,9 +62,9 @@ impl AudioFile {
 
     /// Not intended for external use as it has to read entire file.
     /// After initialisation via from_file, self.file_hash will contain this.
-    fn get_file_hash(song_path: &std::path::Path) -> Result<Hash, Box<dyn Error>> {
+    fn get_file_hash(audio_path: &std::path::Path) -> Result<Hash, Box<dyn Error>> {
         let mut hasher = blake3::Hasher::new();
-        let file = std::fs::File::open(song_path)?;
+        let file = std::fs::File::open(audio_path)?;
         hasher.update_reader(file)?;
         Ok(hasher.finalize())
     }
@@ -77,7 +77,7 @@ impl AudioFile {
         for tag in tags.iter() {
             if let Some(key) = tag.std_key {
                 match key {
-                    StandardTagKey::TrackTitle => self.song_title = tag.value.to_string(),
+                    StandardTagKey::TrackTitle => self.audio_title = tag.value.to_string(),
                     StandardTagKey::Album => self.album_name = tag.value.to_string(),
                     StandardTagKey::Artist => self.artist_name = tag.value.to_string(),
                     StandardTagKey::TrackNumber => {
@@ -93,14 +93,14 @@ impl AudioFile {
         self
     }
 
-    fn get_song_probe(song_path: &std::path::Path) -> symphonia::core::probe::ProbeResult {
-        let file = std::fs::File::open(song_path).unwrap_or_else(|_| {
-            panic!("failed to open file {}", song_path.to_str().unwrap());
+    fn get_audio_probe(audio_path: &std::path::Path) -> symphonia::core::probe::ProbeResult {
+        let file = std::fs::File::open(audio_path).unwrap_or_else(|_| {
+            panic!("failed to open file {}", audio_path.to_str().unwrap());
         });
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
         let mut hint = Hint::new();
         // Provide the file extension as a hint.
-        if let Some(extension) = song_path.extension() {
+        if let Some(extension) = audio_path.extension() {
             if let Some(extension_str) = extension.to_str() {
                 hint.with_extension(extension_str);
             }
@@ -137,8 +137,8 @@ mod audio_file_tests {
     }
 
     #[test]
-    fn test_audio_file_from_file_song_title() {
-        assert_eq!(read_audio_file().song_title, "test song name")
+    fn test_audio_file_from_file_audio_title() {
+        assert_eq!(read_audio_file().audio_title, "test song name")
     }
 
     #[test]
@@ -162,8 +162,8 @@ mod audio_file_tests {
     }
 
     #[test]
-    fn test_audio_file_from_file_song_length() {
-        assert_eq!(read_audio_file().song_length, Duration::new(20, 0))
+    fn test_audio_file_from_file_audio_length() {
+        assert_eq!(read_audio_file().audio_length, Duration::new(20, 0))
     }
 
     #[test]
@@ -171,7 +171,7 @@ mod audio_file_tests {
         let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         p.push(TEST_AUDIO_PATH);
         p = p.canonicalize().unwrap();
-        assert_eq!(read_audio_file().song_path, p)
+        assert_eq!(read_audio_file().audio_path, p)
     }
 
     #[test]

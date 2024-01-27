@@ -208,13 +208,13 @@ fn get_format_reader(audio: &AudioFile) -> symphonia::core::errors::Result<Box<d
     let mut hint = Hint::new();
 
     // Provide the file extension as a hint.
-    if let Some(extension) = audio.song_path.extension() {
+    if let Some(extension) = audio.audio_path.extension() {
         if let Some(extension_str) = extension.to_str() {
             hint.with_extension(extension_str);
         }
     }
 
-    let source = Box::new(File::open(&audio.song_path)?);
+    let source = Box::new(File::open(&audio.audio_path)?);
 
     // Create the media source stream using the boxed media source from above.
     let mss = MediaSourceStream::new(source, Default::default());

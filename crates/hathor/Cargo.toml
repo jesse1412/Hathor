@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hathor-songs = { path = "../hathor-songs" }
+hathor-audios = { path = "../hathor-audios" }
 blake3 = "1.5.0"
 time = "0.3.30"

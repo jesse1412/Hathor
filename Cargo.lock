@@ -323,12 +323,12 @@ name = "hathor"
 version = "0.1.0"
 dependencies = [
  "blake3",
- "hathor-songs",
+ "hathor-audios",
  "time",
 ]
 
 [[package]]
-name = "hathor-songs"
+name = "hathor-audios"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
