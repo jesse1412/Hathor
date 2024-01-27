@@ -1,3 +1,3 @@
 SELECT *
-FROM AUDIOS
-WHERE AUDIO_TITLE LIKE '%' || :audio_title || '%';
+FROM audios
+WHERE audio_title LIKE '%' || :audio_title || '%';
