@@ -13,6 +13,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - name: Install libpulse
+      run: sudo apt-get --fix-missing install -y libpulse0
     - uses: actions/checkout@v3
     - name: Build
       run: cargo build --verbose
