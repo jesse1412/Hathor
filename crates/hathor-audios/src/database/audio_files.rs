@@ -162,8 +162,11 @@ fn insert_next_batch_of_audios(
     transaction: &rusqlite::Transaction<'_>,
     audios_iter: &mut std::iter::Peekable<std::slice::Iter<'_, audio::AudioFile>>,
 ) -> Result<(), Box<dyn Error>> {
-    let mut statement = transaction
+    let mut statement_audios = transaction
         .prepare_cached(include_str!(r"audio_files/insert_audio.sql"))
+        .unwrap();
+    let mut statement_audio_files = transaction
+        .prepare_cached(include_str!(r"audio_files/insert_audio_file.sql"))
         .unwrap();
     for _ in 0..=INSERT_BATCH_SIZE {
         if let Some(audio) = audios_iter.next() {
@@ -175,6 +178,10 @@ fn insert_next_batch_of_audios(
                 ":track_num": audio.track_num,
                 ":release_year": audio.release_year,
                 ":audio_length_s": audio.audio_length.whole_nanoseconds() as i64,
+            };
+            statement_audios.execute(params)?;
+            let params = named_params! {
+                ":file_hash": audio.file_hash.to_string(),
                 ":audio_path": audio.audio_path.canonicalize().unwrap().into_os_string().into_string().unwrap(),
                 ":img_path": audio.img_path.as_ref().map(|s| {
                     s.canonicalize()
@@ -184,7 +191,7 @@ fn insert_next_batch_of_audios(
                         .unwrap()
                 }),
             };
-            statement.execute(params)?;
+            statement_audio_files.execute(params)?;
         } else {
             break;
         }
@@ -208,10 +215,10 @@ mod test_audios_operations {
     #[test]
     fn test_insert_audios() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let album_name = conn
             .query_row::<String, _, _>(
-                r"SELECT ALBUM_NAME FROM audios WHERE AUDIO_TITLE = :audio_title",
+                r"SELECT album_name FROM audios WHERE audio_title = :audio_title",
                 named_params! {":audio_title": audios[0].audio_title },
                 |row| row.get::<usize, String>(0),
             )
@@ -219,12 +226,42 @@ mod test_audios_operations {
         assert_eq!(album_name, audios[0].album_name);
     }
 
+    /// Create a fake test database,
+    /// insert a batch of two audios with same hash/details but different paths,
+    /// and check only one audio inserted
+    /// + both audio paths were inserted.
+    #[test]
+    fn test_insert_same_audio_file_two_paths() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let audios = init_db_with_two_same_audios(&mut conn);
+        let file_count = conn
+            .query_row::<usize, _, _>(
+                r"SELECT COUNT(audio_files.file_hash) AS AMT 
+                FROM audios JOIN audio_files 
+                ON audios.file_hash = audio_files.file_hash 
+                WHERE audios.audio_title = :audio_title",
+                named_params! {":audio_title": audios[0].audio_title },
+                |row| row.get::<usize, usize>(0),
+            )
+            .unwrap();
+        assert_eq!(file_count, audios.len());
+        let audios_count = conn
+            .query_row::<usize, _, _>(
+                r"SELECT COUNT(audios.file_hash) AS AMT 
+                FROM audios WHERE audios.audio_title = :audio_title",
+                named_params! {":audio_title": audios[0].audio_title },
+                |row| row.get::<usize, usize>(0),
+            )
+            .unwrap();
+        assert_eq!(audios_count, 1);
+    }
+
     /// Create a fake test database, insert a batch of audios,
     /// and check they can be retrieved by hash.
     #[test]
     fn test_get_audio_by_hash() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofile_from_db = get_audio_by_hash(&mut conn, &audios[0].file_hash);
         assert_eq!(audiofile_from_db, audios[0]);
     }
@@ -234,7 +271,7 @@ mod test_audios_operations {
     #[test]
     fn test_get_audio_by_album_name_exact() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofile_from_db = &get_audios_by_album_name(&mut conn, &audios[0].album_name);
         let audiofile_from_db = &audiofile_from_db[0];
         assert_eq!(*audiofile_from_db, audios[0]);
@@ -245,7 +282,7 @@ mod test_audios_operations {
     #[test]
     fn test_get_audios_by_album_name_partial() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofiles_from_db = &get_audios_by_album_name(&mut conn, "album");
         for (l, r) in audios.iter().zip(audiofiles_from_db) {
             assert_eq!(l, r);
@@ -257,7 +294,7 @@ mod test_audios_operations {
     #[test]
     fn test_get_audios_by_artist_name_exact() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofile_from_db = &get_audios_by_artist_name(&mut conn, &audios[0].artist_name);
         let audiofile_from_db = &audiofile_from_db[0];
         assert_eq!(*audiofile_from_db, audios[0]);
@@ -268,7 +305,7 @@ mod test_audios_operations {
     #[test]
     fn test_get_audios_by_artist_name_partial() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofiles_from_db = &get_audios_by_artist_name(&mut conn, "artist");
         for (l, r) in audios.iter().zip(audiofiles_from_db) {
             assert_eq!(l, r);
@@ -280,7 +317,7 @@ mod test_audios_operations {
     #[test]
     fn test_get_audio_by_title_exact() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofile_from_db = &get_audios_by_title(&mut conn, &audios[0].audio_title);
         let audiofile_from_db = &audiofile_from_db[0];
         assert_eq!(*audiofile_from_db, audios[0]);
@@ -291,7 +328,7 @@ mod test_audios_operations {
     #[test]
     fn test_get_audio_by_title_partial() {
         let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_audios(&mut conn);
+        let audios = init_db_with_two_different_audios(&mut conn);
         let audiofiles_from_db = &get_audios_by_title(&mut conn, "audio");
         for (l, r) in audios.iter().zip(audiofiles_from_db) {
             assert_eq!(l, r);
@@ -300,7 +337,7 @@ mod test_audios_operations {
 
     /// Initialise a test db, insert two audio files, and return a vec of those audio files.
     /// TODO: Expand/refactor this when more functions are implemented.
-    fn init_db_with_two_audios(conn: &mut Connection) -> Vec<AudioFile> {
+    fn init_db_with_two_different_audios(conn: &mut Connection) -> Vec<AudioFile> {
         init_db(&*conn).expect("Failed to create test database.");
 
         let mut audio_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -327,6 +364,41 @@ mod test_audios_operations {
             audio_path: audio_path.clone(),
             img_path: Some(img_path.clone()),
             ..AudioFile::default()
+        };
+        let audios = vec![a1, a2];
+        insert_audios(conn, &audios).unwrap();
+        audios
+    }
+
+    /// Initialise a test db, insert two audio files, and return a vec of those audio files.
+    /// TODO: Expand/refactor this when more functions are implemented.
+    fn init_db_with_two_same_audios(conn: &mut Connection) -> Vec<AudioFile> {
+        init_db(&*conn).expect("Failed to create test database.");
+
+        let mut audio_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        audio_path.push(r"../../test_media_files/audio/albums/album/test.mp3");
+        audio_path = audio_path.canonicalize().unwrap();
+        let mut img_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        img_path.push(r"../../test_media_files/audio/albums/album_with_cover_file/cover.png");
+        img_path = img_path.canonicalize().unwrap();
+
+        let a1 = AudioFile {
+            file_hash: Hash::from_hex(format!("{:064}", 0)).unwrap(),
+            audio_title: String::from("test audio title 1"),
+            artist_name: String::from("test artist 1"),
+            album_name: String::from("test album title 1"),
+            audio_path: audio_path.clone(),
+            img_path: Some(img_path.clone()),
+            ..AudioFile::default()
+        };
+
+        let mut audio_path_2 = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        audio_path_2.push(r"../../test_media_files/audio/albums/album/test2.mp3");
+        audio_path_2 = audio_path_2.canonicalize().unwrap();
+
+        let a2 = AudioFile {
+            audio_path: audio_path_2,
+            ..a1.clone()
         };
         let audios = vec![a1, a2];
         insert_audios(conn, &audios).unwrap();

@@ -4,6 +4,10 @@ pub(crate) fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error
     conn.execute(include_str!("playlists/initialise_playlists_table.sql"), ())?;
     conn.execute(include_str!("audio_files/initialise_audios_table.sql"), ())?;
     conn.execute(
+        include_str!("audio_files/initialise_audio_files_table.sql"),
+        (),
+    )?;
+    conn.execute(
         include_str!("user_media_folders/initialise_user_media_folders_table.sql"),
         (),
     )?;

@@ -8,7 +8,7 @@ use time::Duration;
 mod resampler;
 
 /// A minimal representation of an Audio file for Hathor.
-#[derive(Eq, PartialEq, Debug, Hash)]
+#[derive(Eq, PartialEq, Debug, Hash, Clone)]
 pub struct AudioFile {
     pub file_hash: Hash,
     pub audio_title: String,
