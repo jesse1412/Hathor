@@ -1,4 +1,4 @@
-INSERT INTO AUDIOS VALUES (
+INSERT INTO audios VALUES (
     :file_hash
     , :audio_title
     , :album_name
