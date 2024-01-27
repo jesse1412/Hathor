@@ -1,6 +1,11 @@
 mod from_file;
+mod output;
+mod playback;
+pub mod playback_manager;
 use blake3::Hash;
 use time::Duration;
+#[cfg(not(target_os = "linux"))]
+mod resampler;
 
 /// A minimal representation of an Audio file for Hathor.
 #[derive(Eq, PartialEq, Debug, Hash)]
