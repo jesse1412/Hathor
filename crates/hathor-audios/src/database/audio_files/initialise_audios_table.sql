@@ -6,6 +6,4 @@ CREATE TABLE IF NOT EXISTS audios (
     , track_num INT(8)
     , release_year INT(16)
     , audio_length_seconds INT(64)
-    , audio_path VARCHAR(256) -- Windows path limit.
-    , img_path VARCHAR(256) -- Windows path limit.
 ) WITHOUT ROWID;
