@@ -16,10 +16,10 @@ const COMPATIBLE_AUDIO_TYPES: &[&str] = &[
 /// # Examples
 ///
 /// ```
-/// use hathor_songs::file_management::get_all_audio_file_paths;
+/// use hathor_audios::file_management::get_all_audio_file_paths;
 /// use std::path::Path;
 ///
-/// let p = Path::new(r"C:\songs\");
+/// let p = Path::new(r"C:\audios\");
 /// let audio_file_paths = get_all_audio_file_paths(&p);
 pub fn get_all_audio_file_paths(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
     let mut audio_file_paths = Vec::new();

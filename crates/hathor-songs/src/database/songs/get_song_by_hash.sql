@@ -1,3 +1,0 @@
-SELECT *
-FROM SONGS
-WHERE FILE_HASH = :file_hash;

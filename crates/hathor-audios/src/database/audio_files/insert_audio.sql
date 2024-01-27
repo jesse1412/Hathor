@@ -1,11 +1,11 @@
-INSERT INTO SONGS VALUES (
+INSERT INTO AUDIOS VALUES (
     :file_hash
-    , :song_title
+    , :audio_title
     , :album_name
     , :artist_name
     , :track_num
     , :release_year
-    , :song_length_s
-    , :song_path
+    , :audio_length_s
+    , :audio_path
     , :img_path
 );

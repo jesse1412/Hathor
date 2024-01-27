@@ -1,7 +1,7 @@
+pub mod audio_files;
 mod initialise_db;
 pub mod playlists;
-pub mod songs;
-pub mod user_meda_folders;
+pub mod user_media_folders;
 
 use blake3::Hash;
 use initialise_db::init_db;
@@ -36,17 +36,17 @@ where
     Ok(conn
         .prepare(sql)?
         .query_map(parameters, |row| {
-            let song_path = PathBuf::from_str(&row.get::<_, String>(7)?).unwrap();
+            let audio_path = PathBuf::from_str(&row.get::<_, String>(7)?).unwrap();
             let img_path = PathBuf::from_str(&row.get::<_, String>(8)?).ok();
             Ok(AudioFile {
                 file_hash: Hash::from_str(&row.get::<_, String>(0)?).unwrap(),
-                song_title: row.get(1)?,
+                audio_title: row.get(1)?,
                 album_name: row.get(2)?,
                 artist_name: row.get(3)?,
                 track_num: row.get(4)?,
                 release_year: row.get(5)?,
-                song_length: Duration::seconds(row.get(6)?),
-                song_path,
+                audio_length: Duration::seconds(row.get(6)?),
+                audio_path,
                 img_path,
             })
         })?
