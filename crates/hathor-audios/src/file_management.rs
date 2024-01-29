@@ -1,3 +1,4 @@
+use crate::audio::AudioFile;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
