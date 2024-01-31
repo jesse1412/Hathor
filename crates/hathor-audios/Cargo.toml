@@ -22,3 +22,6 @@ arrayvec = "0.7.1"
 cpal = "0.15.2"
 rb = "0.3.2"
 rubato = "0.14.1"
+
+[dev-dependencies]
+rstest = "0.18.2"
