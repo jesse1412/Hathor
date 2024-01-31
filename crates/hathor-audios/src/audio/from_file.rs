@@ -6,7 +6,7 @@ use blake3::Hash;
 use symphonia::core::formats::{FormatOptions, Track};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::{MetadataOptions, MetadataRevision, StandardTagKey};
-use symphonia::core::probe::Hint;
+use symphonia::core::probe::{Hint, ProbeResult};
 use time::Duration;
 
 impl AudioFile {
@@ -27,10 +27,10 @@ impl AudioFile {
         let mut audio_file = AudioFile::default();
         // Open file.
 
-        let mut probe = AudioFile::get_audio_probe(audio_path);
+        let mut probe = AudioFile::get_audio_probe(audio_path)?;
 
         // Add the metadata we already have
-        audio_file.audio_path = audio_path.to_path_buf().canonicalize().unwrap();
+        audio_file.audio_path = audio_path.to_path_buf().canonicalize()?;
 
         // Add metadata from within the file itself.
         if let Some(metadata_rev) = probe.format.metadata().current() {
@@ -69,10 +69,7 @@ impl AudioFile {
         Ok(hasher.finalize())
     }
 
-    fn add_symphonia_metadata(
-        self: &mut AudioFile,
-        metadata_rev: &MetadataRevision,
-    ) -> &mut AudioFile {
+    fn add_symphonia_metadata(self: &mut AudioFile, metadata_rev: &MetadataRevision) {
         let tags = metadata_rev.tags();
         for tag in tags.iter() {
             if let Some(key) = tag.std_key {
@@ -90,13 +87,12 @@ impl AudioFile {
                 }
             }
         }
-        self
     }
 
-    fn get_audio_probe(audio_path: &std::path::Path) -> symphonia::core::probe::ProbeResult {
-        let file = std::fs::File::open(audio_path).unwrap_or_else(|_| {
-            panic!("failed to open file {}", audio_path.to_str().unwrap());
-        });
+    fn get_audio_probe(
+        audio_path: &std::path::Path,
+    ) -> Result<ProbeResult, symphonia::core::errors::Error> {
+        let file = std::fs::File::open(audio_path)?;
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
         let mut hint = Hint::new();
         // Provide the file extension as a hint.
@@ -108,9 +104,7 @@ impl AudioFile {
         let meta_opts: MetadataOptions = Default::default();
         let fmt_opts: FormatOptions = Default::default();
 
-        symphonia::default::get_probe()
-            .format(&hint, mss, &fmt_opts, &meta_opts)
-            .expect("unsupported format")
+        symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts)
     }
 }
 
