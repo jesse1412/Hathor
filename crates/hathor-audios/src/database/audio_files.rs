@@ -182,14 +182,12 @@ fn insert_next_batch_of_audios(
             statement_audios.execute(params)?;
             let params = named_params! {
                 ":file_hash": audio.file_hash.to_string(),
-                ":audio_path": audio.audio_path.canonicalize().unwrap().into_os_string().into_string().unwrap(),
-                ":img_path": audio.img_path.as_ref().map(|s| {
-                    s.canonicalize()
-                        .unwrap()
+                ":audio_path": audio.audio_path.canonicalize()?.into_os_string().into_string().unwrap(),
+                ":img_path": audio.img_path.as_ref().unwrap()
+                    .canonicalize()?
                         .into_os_string()
-                        .into_string()
-                        .unwrap()
-                }),
+                        .into_string().unwrap()
+                ,
             };
             statement_audio_files.execute(params)?;
         } else {
@@ -206,50 +204,63 @@ mod test_audios_operations {
         get_audio_by_hash, get_audios_by_album_name, get_audios_by_artist_name,
         get_audios_by_title, insert_audios,
     };
-    use crate::database::init_db;
-    use blake3::Hash;
-    use rusqlite::{named_params, Connection};
-    use std::path::PathBuf;
+    use crate::fixtures::{playlist_db_in_memory, TestInMemoryDBContext};
+    use rstest::rstest;
+    use rusqlite::named_params;
 
-    /// Create a fake test database, insert a batch of audios, and check it inserted.
-    #[test]
-    fn test_insert_audios() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let album_name = conn
+    /// Create a fake test database, insert a batch of audios, and check first inserted.
+    #[rstest]
+    fn test_insert_audios(playlist_db_in_memory: TestInMemoryDBContext) {
+        let album_name = playlist_db_in_memory
+            .connection
             .query_row::<String, _, _>(
                 r"SELECT album_name FROM audios WHERE audio_title = :audio_title",
-                named_params! {":audio_title": audios[0].audio_title },
+                named_params! {":audio_title": playlist_db_in_memory.audios[0].audio_title },
                 |row| row.get::<usize, String>(0),
             )
             .unwrap();
-        assert_eq!(album_name, audios[0].album_name);
+        assert_eq!(album_name, playlist_db_in_memory.audios[0].album_name);
     }
 
     /// Create a fake test database,
     /// insert a batch of two audios with same hash/details but different paths,
     /// and check only one audio inserted
     /// + both audio paths were inserted.
-    #[test]
-    fn test_insert_same_audio_file_two_paths() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_same_audios(&mut conn);
-        let file_count = conn
+    #[rstest]
+    fn test_insert_same_audio_file_two_paths(mut playlist_db_in_memory: TestInMemoryDBContext) {
+        let new_audio_with_diff_path = AudioFile {
+            audio_path: playlist_db_in_memory.audios[1].audio_path.clone(),
+            ..playlist_db_in_memory.audios[0].clone()
+        };
+        insert_audios(
+            &mut playlist_db_in_memory.connection,
+            &[new_audio_with_diff_path.clone()],
+        )
+        .unwrap();
+
+        // First, check both audio file paths were added.
+        let file_count = playlist_db_in_memory
+            .connection
             .query_row::<usize, _, _>(
                 r"SELECT COUNT(audio_files.file_hash) AS AMT 
-                FROM audios JOIN audio_files 
-                ON audios.file_hash = audio_files.file_hash 
-                WHERE audios.audio_title = :audio_title",
-                named_params! {":audio_title": audios[0].audio_title },
+                FROM audios
+                    INNER JOIN audio_files 
+                        ON audios.file_hash = audio_files.file_hash 
+                WHERE audios.file_hash = :file_hash",
+                named_params! {":file_hash": new_audio_with_diff_path.file_hash.to_string() },
                 |row| row.get::<usize, usize>(0),
             )
             .unwrap();
-        assert_eq!(file_count, audios.len());
-        let audios_count = conn
+
+        // Second, check only 1 audio entry was added.
+        assert_eq!(file_count, 2);
+        let audios_count = playlist_db_in_memory
+            .connection
             .query_row::<usize, _, _>(
                 r"SELECT COUNT(audios.file_hash) AS AMT 
-                FROM audios WHERE audios.audio_title = :audio_title",
-                named_params! {":audio_title": audios[0].audio_title },
+                FROM audios
+                WHERE audios.file_hash = :file_hash",
+                named_params! {":file_hash": new_audio_with_diff_path.file_hash.to_string() },
                 |row| row.get::<usize, usize>(0),
             )
             .unwrap();
@@ -258,150 +269,39 @@ mod test_audios_operations {
 
     /// Create a fake test database, insert a batch of audios,
     /// and check they can be retrieved by hash.
-    #[test]
-    fn test_get_audio_by_hash() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofile_from_db = get_audio_by_hash(&mut conn, &audios[0].file_hash);
-        assert_eq!(audiofile_from_db, audios[0]);
+    #[rstest]
+    fn test_get_audio_by_hash(mut playlist_db_in_memory: TestInMemoryDBContext) {
+        let audiofile_from_db = get_audio_by_hash(
+            &mut playlist_db_in_memory.connection,
+            &playlist_db_in_memory.audios[0].file_hash,
+        );
+        assert_eq!(audiofile_from_db, playlist_db_in_memory.audios[0]);
     }
 
     /// Create a fake test database, insert a batch of audios,
-    /// and check they can be retrieved by an exact album name match.
-    #[test]
-    fn test_get_audio_by_album_name_exact() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofile_from_db = &get_audios_by_album_name(&mut conn, &audios[0].album_name);
-        let audiofile_from_db = &audiofile_from_db[0];
-        assert_eq!(*audiofile_from_db, audios[0]);
+    /// and check multiple can be retrieved by an album name match.
+    #[rstest]
+    fn test_get_audios_by_album_name_multiple(mut playlist_db_in_memory: TestInMemoryDBContext) {
+        let audiofiles_from_db =
+            get_audios_by_album_name(&mut playlist_db_in_memory.connection, "album");
+        assert_eq!(audiofiles_from_db, playlist_db_in_memory.audios);
     }
 
     /// Create a fake test database, insert a batch of audios,
-    /// and check they can be retrieved by a partial album name match.
-    #[test]
-    fn test_get_audios_by_album_name_partial() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofiles_from_db = &get_audios_by_album_name(&mut conn, "album");
-        for (l, r) in audios.iter().zip(audiofiles_from_db) {
-            assert_eq!(l, r);
-        }
+    /// and check multiple can be retrieved by an artist name match.
+    #[rstest]
+    fn test_get_audios_by_artist_name_multiple(mut playlist_db_in_memory: TestInMemoryDBContext) {
+        let audiofiles_from_db =
+            get_audios_by_artist_name(&mut playlist_db_in_memory.connection, "artist");
+        assert_eq!(audiofiles_from_db, playlist_db_in_memory.audios);
     }
 
     /// Create a fake test database, insert a batch of audios,
-    /// and check they can be retrieved by an exact artist name match.
-    #[test]
-    fn test_get_audios_by_artist_name_exact() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofile_from_db = &get_audios_by_artist_name(&mut conn, &audios[0].artist_name);
-        let audiofile_from_db = &audiofile_from_db[0];
-        assert_eq!(*audiofile_from_db, audios[0]);
-    }
-
-    /// Create a fake test database, insert a batch of audios,
-    /// and check they can be retrieved by a partial artist name match.
-    #[test]
-    fn test_get_audios_by_artist_name_partial() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofiles_from_db = &get_audios_by_artist_name(&mut conn, "artist");
-        for (l, r) in audios.iter().zip(audiofiles_from_db) {
-            assert_eq!(l, r);
-        }
-    }
-
-    /// Create a fake test database, insert a batch of audios,
-    /// and check they can be retrieved by an exact title match.
-    #[test]
-    fn test_get_audio_by_title_exact() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofile_from_db = &get_audios_by_title(&mut conn, &audios[0].audio_title);
-        let audiofile_from_db = &audiofile_from_db[0];
-        assert_eq!(*audiofile_from_db, audios[0]);
-    }
-
-    /// Create a fake test database, insert a batch of audios,
-    /// and check they can be retrieved by a partial title match.
-    #[test]
-    fn test_get_audio_by_title_partial() {
-        let mut conn = Connection::open_in_memory().unwrap();
-        let audios = init_db_with_two_different_audios(&mut conn);
-        let audiofiles_from_db = &get_audios_by_title(&mut conn, "audio");
-        for (l, r) in audios.iter().zip(audiofiles_from_db) {
-            assert_eq!(l, r);
-        }
-    }
-
-    /// Initialise a test db, insert two audio files, and return a vec of those audio files.
-    /// TODO: Expand/refactor this when more functions are implemented.
-    fn init_db_with_two_different_audios(conn: &mut Connection) -> Vec<AudioFile> {
-        init_db(&*conn).expect("Failed to create test database.");
-
-        let mut audio_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        audio_path.push(r"../../test_media_files/audio/albums/album/test.mp3");
-        audio_path = audio_path.canonicalize().unwrap();
-        let mut img_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        img_path.push(r"../../test_media_files/audio/albums/album_with_cover_file/cover.png");
-        img_path = img_path.canonicalize().unwrap();
-
-        let a1 = AudioFile {
-            file_hash: Hash::from_hex(format!("{:064}", 0)).unwrap(),
-            audio_title: String::from("test audio title 1"),
-            artist_name: String::from("test artist 1"),
-            album_name: String::from("test album title 1"),
-            audio_path: audio_path.clone(),
-            img_path: Some(img_path.clone()),
-            ..AudioFile::default()
-        };
-        let a2 = AudioFile {
-            file_hash: Hash::from_hex(format!("{:064}", 1)).unwrap(),
-            audio_title: String::from("test audio title 2"),
-            artist_name: String::from("test artist 2"),
-            album_name: String::from("test album title 2"),
-            audio_path: audio_path.clone(),
-            img_path: Some(img_path.clone()),
-            ..AudioFile::default()
-        };
-        let audios = vec![a1, a2];
-        insert_audios(conn, &audios).unwrap();
-        audios
-    }
-
-    /// Initialise a test db, insert two audio files, and return a vec of those audio files.
-    /// TODO: Expand/refactor this when more functions are implemented.
-    fn init_db_with_two_same_audios(conn: &mut Connection) -> Vec<AudioFile> {
-        init_db(&*conn).expect("Failed to create test database.");
-
-        let mut audio_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        audio_path.push(r"../../test_media_files/audio/albums/album/test.mp3");
-        audio_path = audio_path.canonicalize().unwrap();
-        let mut img_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        img_path.push(r"../../test_media_files/audio/albums/album_with_cover_file/cover.png");
-        img_path = img_path.canonicalize().unwrap();
-
-        let a1 = AudioFile {
-            file_hash: Hash::from_hex(format!("{:064}", 0)).unwrap(),
-            audio_title: String::from("test audio title 1"),
-            artist_name: String::from("test artist 1"),
-            album_name: String::from("test album title 1"),
-            audio_path: audio_path.clone(),
-            img_path: Some(img_path.clone()),
-            ..AudioFile::default()
-        };
-
-        let mut audio_path_2 = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        audio_path_2.push(r"../../test_media_files/audio/albums/album/test2.mp3");
-        audio_path_2 = audio_path_2.canonicalize().unwrap();
-
-        let a2 = AudioFile {
-            audio_path: audio_path_2,
-            ..a1.clone()
-        };
-        let audios = vec![a1, a2];
-        insert_audios(conn, &audios).unwrap();
-        audios
+    /// and check multiple can be retrieved by an title match.
+    #[rstest]
+    fn test_get_audios_by_title_multiple(mut playlist_db_in_memory: TestInMemoryDBContext) {
+        let audiofiles_from_db =
+            get_audios_by_title(&mut playlist_db_in_memory.connection, "title");
+        assert_eq!(audiofiles_from_db, playlist_db_in_memory.audios);
     }
 }
