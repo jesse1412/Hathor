@@ -12,5 +12,4 @@ FROM audios
     INNER JOIN audio_files
         ON
             audios.audio_title LIKE '%' || :audio_title || '%'
-            AND audios.file_hash = audio_files.file_hash
-LIMIT 1;
+            AND audios.file_hash = audio_files.file_hash;
