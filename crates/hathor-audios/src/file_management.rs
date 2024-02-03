@@ -1,5 +1,4 @@
 use crate::audio::AudioFile;
-use std::error::Error;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -8,21 +7,16 @@ const COMPATIBLE_AUDIO_TYPES: &[&str] = &[
     "webm",
 ];
 
+/// Recursively finds audio files at the given path.
+/// [AudioFile]s are then created from all found files.
+/// Invalid/unreadable audio files are skipped.
+pub fn get_all_audios_at_path(path: &Path) -> Vec<AudioFile> {
+    let paths = get_all_audio_file_paths_at_path(path);
+    get_audios_from_paths(&paths)
+}
+
 /// Recursively finds audio file paths.
-///
-/// # Arguments
-///
-/// * `path` - Path to a file or directory containing files.
-///
-/// # Examples
-///
-/// ```
-/// use hathor_audios::file_management::get_all_audio_file_paths_at_path;
-/// use std::path::Path;
-///
-/// let p = Path::new(r"C:\audios\");
-/// let audio_file_paths = get_all_audio_file_paths_at_path(&p);
-pub fn get_all_audio_file_paths_at_path(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+fn get_all_audio_file_paths_at_path(path: &Path) -> Vec<PathBuf> {
     let mut audio_file_paths = Vec::new();
     for entry in WalkDir::new(path)
         .follow_links(true)
@@ -39,7 +33,14 @@ pub fn get_all_audio_file_paths_at_path(path: &Path) -> Result<Vec<PathBuf>, Box
         }
     }
 
-    Ok(audio_file_paths)
+    audio_file_paths
+}
+
+fn get_audios_from_paths(paths: &[PathBuf]) -> Vec<AudioFile> {
+    paths
+        .iter()
+        .filter_map(|p| AudioFile::from_file(p).ok())
+        .collect()
 }
 
 #[cfg(test)]
@@ -78,7 +79,7 @@ mod file_management_tests {
         #[case] folder_path: PathBuf,
         #[case] expected_found_file_names: Vec<String>,
     ) {
-        let paths = get_all_audio_file_paths_at_path(&folder_path).unwrap();
+        let paths = get_all_audio_file_paths_at_path(&folder_path);
         let mut file_names = paths
             .iter()
             .map(|p| p.file_name().unwrap().to_str().unwrap())
