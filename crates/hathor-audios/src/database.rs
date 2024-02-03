@@ -1,5 +1,5 @@
 pub mod audio_files;
-mod initialise_db;
+pub(crate) mod initialise_db;
 pub mod playlists;
 pub mod user_media_folders;
 
@@ -57,29 +57,12 @@ where
 #[cfg(test)]
 mod test_db_operations {
     use crate::database::get_connection;
-    use std::fs;
-    use std::path::{Path, PathBuf};
+    use crate::fixtures::{db_in_file, TestContext};
+    use rstest::rstest;
 
-    /// Deletes the temporary test DB from file-system on drop.
-    /// So we instantiate it at the start of the tests,
-    /// otherwise the test DB may persist on panic.
-    struct TestContext {
-        db_path: PathBuf,
-    }
-
-    impl Drop for TestContext {
-        fn drop(&mut self) {
-            fs::remove_file(&self.db_path).ok();
-        }
-    }
-
-    #[test]
-    fn test_get_connection_with_new_db() {
-        let test_db_path = Path::new(".test_hathor.sqlite3");
-        let _test_db_context = TestContext {
-            db_path: PathBuf::from(test_db_path),
-        };
-        let conn = get_connection(test_db_path).unwrap();
+    #[rstest]
+    fn test_get_connection_with_new_db(db_in_file: TestContext) {
+        let conn = get_connection(&db_in_file.path).unwrap();
         let test_query_result = conn
             .query_row::<String, _, _>("SELECT \"test\";", (), |row| row.get::<usize, String>(0))
             .unwrap();

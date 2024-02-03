@@ -117,65 +117,59 @@ impl AudioFile {
 #[cfg(test)]
 mod audio_file_tests {
     use crate::audio::AudioFile;
+    use crate::fixtures::audio_read_from_file;
+    use rstest::rstest;
     use std::path::PathBuf;
     use time::Duration;
 
-    const TEST_AUDIO_PATH: &str = r"../../test_media_files/audio/albums/album/test.mp3";
-
-    fn read_audio_file() -> AudioFile {
-        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push(TEST_AUDIO_PATH);
-        AudioFile::from_file(&p).unwrap()
-    }
-
-    #[test]
-    fn test_audio_file_from_file_hashing() {
+    #[rstest]
+    fn test_audio_from_file_hashing(audio_read_from_file: AudioFile) {
         assert_eq!(
-            read_audio_file().file_hash.to_string(),
+            audio_read_from_file.file_hash.to_string(),
             "0955ffa35bfeabf7a0140a3199791c9a5e175d672a1f3317497bc1c962a0ddf5"
         )
     }
 
-    #[test]
-    fn test_audio_file_from_file_audio_title() {
-        assert_eq!(read_audio_file().audio_title, "test song name")
+    #[rstest]
+    fn test_audio_from_file_audio_title(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.audio_title, "test song name")
     }
 
-    #[test]
-    fn test_audio_file_from_file_album_name() {
-        assert_eq!(read_audio_file().album_name, "test album")
+    #[rstest]
+    fn test_audio_from_file_album_name(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.album_name, "test album")
     }
 
-    #[test]
-    fn test_audio_file_from_file_artist_name() {
-        assert_eq!(read_audio_file().artist_name, "test artist")
+    #[rstest]
+    fn test_audio_from_file_artist_name(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.artist_name, "test artist")
     }
 
-    #[test]
-    fn test_audio_file_from_file_track_num() {
-        assert_eq!(read_audio_file().track_num, 1)
+    #[rstest]
+    fn test_audio_from_file_track_num(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.track_num, 1)
     }
 
-    #[test]
-    fn test_audio_file_from_file_release_year() {
-        assert_eq!(read_audio_file().release_year, 2023)
+    #[rstest]
+    fn test_audio_from_file_release_year(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.release_year, 2023)
     }
 
-    #[test]
-    fn test_audio_file_from_file_audio_length() {
-        assert_eq!(read_audio_file().audio_length, Duration::new(20, 0))
+    #[rstest]
+    fn test_audio_from_file_audio_length(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.audio_length, Duration::new(20, 0))
     }
 
-    #[test]
-    fn test_audio_file_from_file_path() {
+    #[rstest]
+    fn test_audio_from_file_path(audio_read_from_file: AudioFile) {
         let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push(TEST_AUDIO_PATH);
+        p.push(r"../../test_media_files/audio/albums/album/test.mp3");
         p = p.canonicalize().unwrap();
-        assert_eq!(read_audio_file().audio_path, p)
+        assert_eq!(audio_read_from_file.audio_path, p)
     }
 
-    #[test]
-    fn test_audio_file_from_file_img_path() {
-        assert_eq!(read_audio_file().img_path, None)
+    #[rstest]
+    fn test_audio_from_file_img_path(audio_read_from_file: AudioFile) {
+        assert_eq!(audio_read_from_file.img_path, None)
     }
 }
