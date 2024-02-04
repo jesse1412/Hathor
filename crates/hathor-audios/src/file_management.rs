@@ -1,4 +1,4 @@
-use std::error::Error;
+use crate::audio::AudioFile;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -7,21 +7,16 @@ const COMPATIBLE_AUDIO_TYPES: &[&str] = &[
     "webm",
 ];
 
+/// Recursively finds audio files at the given path.
+/// [AudioFile]s are then created from all found files.
+/// Invalid/unreadable audio files are skipped.
+pub fn get_all_audios_at_path(path: &Path) -> Vec<AudioFile> {
+    let paths = get_all_audio_file_paths_at_path(path);
+    get_audios_from_paths(&paths)
+}
+
 /// Recursively finds audio file paths.
-///
-/// # Arguments
-///
-/// * `path` - Path to a file or directory containing files.
-///
-/// # Examples
-///
-/// ```
-/// use hathor_audios::file_management::get_all_audio_file_paths_at_path;
-/// use std::path::Path;
-///
-/// let p = Path::new(r"C:\audios\");
-/// let audio_file_paths = get_all_audio_file_paths_at_path(&p);
-pub fn get_all_audio_file_paths_at_path(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+fn get_all_audio_file_paths_at_path(path: &Path) -> Vec<PathBuf> {
     let mut audio_file_paths = Vec::new();
     for entry in WalkDir::new(path)
         .follow_links(true)
@@ -38,14 +33,24 @@ pub fn get_all_audio_file_paths_at_path(path: &Path) -> Result<Vec<PathBuf>, Box
         }
     }
 
-    Ok(audio_file_paths)
+    audio_file_paths
+}
+
+fn get_audios_from_paths(paths: &[PathBuf]) -> Vec<AudioFile> {
+    paths
+        .iter()
+        .filter_map(|p| AudioFile::from_file(p).ok())
+        .collect()
 }
 
 #[cfg(test)]
 mod file_management_tests {
     const TEST_AUDIO_FOLDER: &str = r"/../../test_media_files/audio/albums";
 
-    use super::{get_all_audio_file_paths_at_path, COMPATIBLE_AUDIO_TYPES};
+    use super::{
+        get_all_audio_file_paths_at_path, get_all_audios_at_path, get_audios_from_paths,
+        COMPATIBLE_AUDIO_TYPES,
+    };
     use rstest::rstest;
     use std::path::PathBuf;
 
@@ -73,14 +78,74 @@ mod file_management_tests {
         PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album_with_cover_file"),
         vec![String::from("test.mp3")])
     ]
-    fn test_get_all_audio_file_paths_in_folders(
+    fn test_get_all_audio_file_paths_in_folders_works(
         #[case] folder_path: PathBuf,
         #[case] expected_found_file_names: Vec<String>,
     ) {
-        let paths = get_all_audio_file_paths_at_path(&folder_path).unwrap();
+        let paths = get_all_audio_file_paths_at_path(&folder_path);
         let mut file_names = paths
             .iter()
             .map(|p| p.file_name().unwrap().to_str().unwrap())
+            .collect::<Vec<&str>>();
+        // Sort to prevent none deterministic failures.
+        file_names.sort_unstable();
+        assert_eq!(file_names, expected_found_file_names);
+    }
+
+    #[rstest]
+    // Valid mp3s.
+    #[case(
+        get_all_audio_file_paths_at_path(&PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album")),
+        vec![String::from("test.mp3"), String::from("test2.mp3")])
+    ]
+    // Bad files.
+    #[case(
+        get_all_audio_file_paths_at_path(&PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album_bad_files")),
+        Vec::new()
+    )]
+    // Mix of good and bad files.
+    #[case(
+        get_all_audio_file_paths_at_path(&PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album_with_cover_file")),
+        vec![String::from("test.mp3")])
+    ]
+    fn test_get_audios_from_paths_works(
+        #[case] folder_path: Vec<PathBuf>,
+        #[case] expected_found_file_names: Vec<String>,
+    ) {
+        let audios = get_audios_from_paths(&folder_path);
+        let mut file_names = audios
+            .iter()
+            .map(|a| a.audio_path.file_name().unwrap().to_str().unwrap())
+            .collect::<Vec<&str>>();
+        // Sort to prevent none deterministic failures.
+        file_names.sort_unstable();
+        assert_eq!(file_names, expected_found_file_names);
+    }
+
+    #[rstest]
+    // Valid mp3s.
+    #[case(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album"),
+        vec![String::from("test.mp3"), String::from("test2.mp3")])
+    ]
+    // Bad files.
+    #[case(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album_bad_files"),
+        Vec::new()
+    )]
+    // Mix of good and bad files.
+    #[case(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR").to_owned() + TEST_AUDIO_FOLDER + "/album_with_cover_file"),
+        vec![String::from("test.mp3")])
+    ]
+    fn test_get_all_audios_at_path_works(
+        #[case] folder_path: PathBuf,
+        #[case] expected_found_file_names: Vec<String>,
+    ) {
+        let audios = get_all_audios_at_path(&folder_path);
+        let mut file_names = audios
+            .iter()
+            .map(|a| a.audio_path.file_name().unwrap().to_str().unwrap())
             .collect::<Vec<&str>>();
         // Sort to prevent none deterministic failures.
         file_names.sort_unstable();
