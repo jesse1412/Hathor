@@ -6,6 +6,7 @@ use log::warn;
 use std::borrow::BorrowMut;
 use std::fs::File;
 use std::sync::mpsc::{Receiver, Sender};
+use std::{thread, time::Duration};
 use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::codecs::{Decoder, CODEC_TYPE_NULL};
 use symphonia::core::formats::FormatOptions;
@@ -26,12 +27,14 @@ pub(crate) fn do_play_loop(
     // Handle incoming commands from other threads.
     // Repeat until we get an audio file and can start the playback loop.
     while playback.format_reader.is_none() && playback.decoder.is_none() {
+        thread::sleep(Duration::from_millis(10));
         playback.try_consume_next_audio_command()?;
     }
     loop {
         // Handle incoming commands from other threads.
         playback.try_consume_next_audio_command()?;
         if !playback.play {
+            thread::sleep(Duration::from_millis(10));
             continue;
         }
         // Get the next packet from the format reader.
